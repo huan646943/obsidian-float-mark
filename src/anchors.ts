@@ -1,3 +1,4 @@
+import type { Text } from "@codemirror/state";
 import type { TextAnchor } from "./types";
 
 const CONTEXT_LENGTH = 40;
@@ -23,6 +24,26 @@ export function createTextAnchor(source: string, startOffset: number, endOffset:
 			lineEnd: endPosition.line,
 			columnStart: startPosition.column,
 			columnEnd: endPosition.column
+		}
+	};
+}
+
+export function createEditorTextAnchor(document: Text, startOffset: number, endOffset: number): TextAnchor {
+	const start = Math.max(0, Math.min(startOffset, endOffset, document.length));
+	const end = Math.max(start, Math.min(Math.max(startOffset, endOffset), document.length));
+	const startLine = document.lineAt(start);
+	const endLine = document.lineAt(end);
+	return {
+		startOffset: start,
+		endOffset: end,
+		selectedText: document.sliceString(start, end),
+		prefix: document.sliceString(Math.max(0, start - CONTEXT_LENGTH), start),
+		suffix: document.sliceString(end, Math.min(document.length, end + CONTEXT_LENGTH)),
+		position: {
+			lineStart: startLine.number,
+			lineEnd: endLine.number,
+			columnStart: start - startLine.from + 1,
+			columnEnd: end - endLine.from + 1
 		}
 	};
 }

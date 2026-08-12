@@ -1,5 +1,5 @@
-import type { ChangeDesc } from "@codemirror/state";
-import { createTextAnchor, relocateAnchor } from "./anchors";
+import type { ChangeDesc, Text } from "@codemirror/state";
+import { createEditorTextAnchor, relocateAnchor } from "./anchors";
 import type { MarkAnchorUpdate } from "./storage";
 import type { SideMark } from "./types";
 
@@ -24,7 +24,12 @@ export function mergePendingEditorAnchorUpdates(
 	}
 }
 
-export function reconcileEditorMarks(marks: SideMark[], source: string, changes: ChangeDesc): SideMark[] {
+export function reconcileEditorMarks(marks: SideMark[], document: Text, changes: ChangeDesc): SideMark[] {
+	let source: string | null = null;
+	const getSource = (): string => {
+		source ??= document.toString();
+		return source;
+	};
 	return marks.map((mark) => {
 		if (mark.status === "resolved") {
 			return mark;
@@ -32,11 +37,11 @@ export function reconcileEditorMarks(marks: SideMark[], source: string, changes:
 
 		const from = changes.mapPos(mark.anchor.startOffset, 1);
 		const to = Math.max(from, changes.mapPos(mark.anchor.endOffset, -1));
-		if (mark.status === "active" && source.slice(from, to) === mark.anchor.selectedText) {
-			return { ...mark, anchor: createTextAnchor(source, from, to) };
+		if (mark.status === "active" && document.sliceString(from, to) === mark.anchor.selectedText) {
+			return { ...mark, anchor: createEditorTextAnchor(document, from, to) };
 		}
 
-		const anchor = relocateAnchor(source, { ...mark.anchor, startOffset: from, endOffset: to }, {
+		const anchor = relocateAnchor(getSource(), { ...mark.anchor, startOffset: from, endOffset: to }, {
 			trustStoredPosition: false,
 			allowUniqueTextFallback: false
 		});

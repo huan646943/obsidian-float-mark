@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdir } from "node:fs/promises";
+import { EditorState } from "@codemirror/state";
 import esbuild from "esbuild";
 
 await mkdir("test/.tmp", { recursive: true });
@@ -11,7 +12,7 @@ await esbuild.build({
 	outfile: "test/.tmp/anchors.mjs"
 });
 
-const { createTextAnchor, relocateAnchor } = await import("./.tmp/anchors.mjs");
+const { createEditorTextAnchor, createTextAnchor, relocateAnchor } = await import("./.tmp/anchors.mjs");
 
 const source = "# Note\n\nAlpha beta gamma.\n\nAlpha beta delta.";
 const start = source.indexOf("Alpha beta delta");
@@ -19,6 +20,9 @@ const anchor = createTextAnchor(source, start, start + "Alpha beta".length);
 
 assert.equal(anchor.selectedText, "Alpha beta");
 assert.equal(anchor.position.lineStart, 5);
+
+const editorAnchor = createEditorTextAnchor(EditorState.create({ doc: source }).doc, start, start + "Alpha beta".length);
+assert.deepEqual(editorAnchor, anchor);
 
 const edited = "# Note\n\nInserted line.\n\nAlpha beta gamma.\n\nAlpha beta delta.";
 const relocated = relocateAnchor(edited, anchor);

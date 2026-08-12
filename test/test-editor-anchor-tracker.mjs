@@ -39,21 +39,42 @@ function createMark(source, startOffset, selectedText, status = "active") {
 const source = "before marked after";
 const mark = createMark(source, source.indexOf("marked"), "marked");
 
+function trackMaterialization(document) {
+	let count = 0;
+	const tracked = new Proxy(document, {
+		get(target, property) {
+			if (property === "toString") {
+				return () => {
+					count += 1;
+					return target.toString();
+				};
+			}
+			const value = Reflect.get(target, property, target);
+			return typeof value === "function" ? value.bind(target) : value;
+		}
+	});
+	return { tracked, getCount: () => count };
+}
+
 const inserted = EditorState.create({ doc: source }).update({ changes: { from: 0, insert: "new " } });
-const moved = reconcileEditorMarks([mark], inserted.state.doc.toString(), inserted.changes);
+const trackedInserted = trackMaterialization(inserted.state.doc);
+const moved = reconcileEditorMarks([mark], trackedInserted.tracked, inserted.changes);
 assert.equal(moved[0].status, "active");
 assert.equal(moved[0].anchor.startOffset, mark.anchor.startOffset + 4);
+assert.equal(trackedInserted.getCount(), 0, "the active-anchor fast path must not materialize the document");
 
 const appended = EditorState.create({ doc: source }).update({ changes: { from: source.length, insert: " more" } });
-const unchanged = reconcileEditorMarks([mark], appended.state.doc.toString(), appended.changes);
+const unchanged = reconcileEditorMarks([mark], appended.state.doc, appended.changes);
 assert.equal(unchanged[0].status, "active");
 assert.equal(unchanged[0].anchor.startOffset, mark.anchor.startOffset);
 
 const inside = EditorState.create({ doc: source }).update({
 	changes: { from: mark.anchor.startOffset + 2, to: mark.anchor.startOffset + 4, insert: "XX" }
 });
-const orphaned = reconcileEditorMarks([mark], inside.state.doc.toString(), inside.changes);
+const trackedInside = trackMaterialization(inside.state.doc);
+const orphaned = reconcileEditorMarks([mark], trackedInside.tracked, inside.changes);
 assert.equal(orphaned[0].status, "orphaned");
+assert.equal(trackedInside.getCount(), 1, "the relocation slow path may materialize the document once");
 
 const duplicateSource = "before marked after\nbefore marked after";
 const duplicateMark = createMark(source, source.indexOf("marked"), "marked", "orphaned");
@@ -62,19 +83,22 @@ const duplicateUpdate = EditorState.create({ doc: duplicateSource }).update({
 });
 const stillOrphaned = reconcileEditorMarks(
 	[duplicateMark],
-	duplicateUpdate.state.doc.toString(),
+	duplicateUpdate.state.doc,
 	duplicateUpdate.changes
 );
 assert.equal(stillOrphaned[0].status, "orphaned");
 
 const restoredUpdate = EditorState.create({ doc: source }).update({ changes: { from: 0, insert: "new " } });
 const restoredSource = restoredUpdate.state.doc.toString();
-const restored = reconcileEditorMarks([duplicateMark], restoredUpdate.state.doc.toString(), restoredUpdate.changes);
+const trackedRestored = trackMaterialization(restoredUpdate.state.doc);
+const restored = reconcileEditorMarks([duplicateMark, { ...duplicateMark, id: "mark-2" }], trackedRestored.tracked,
+	restoredUpdate.changes);
 assert.equal(restored[0].status, "active");
 assert.equal(restored[0].anchor.startOffset, restoredSource.indexOf("marked"));
+assert.equal(trackedRestored.getCount(), 1, "multiple slow-path anchors must share one materialized document");
 
 const resolved = { ...mark, status: "resolved" };
-assert.equal(reconcileEditorMarks([resolved], inserted.state.doc.toString(), inserted.changes)[0], resolved);
+assert.equal(reconcileEditorMarks([resolved], inserted.state.doc, inserted.changes)[0], resolved);
 
 const pendingUpdates = new Map();
 const firstOrphaned = {

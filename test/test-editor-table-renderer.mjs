@@ -25,6 +25,7 @@ globalThis.cancelAnimationFrame = dom.window.cancelAnimationFrame.bind(dom.windo
 const {
 	EditorTableMarkRenderer,
 	findCellSourceRangeForTest,
+	getWidgetSourceRangeForTest,
 	renderEditorTableMarks
 } = await import("./.tmp/editor-table-renderer.mjs");
 
@@ -159,6 +160,48 @@ const state = EditorState.create({
 	extensions: [EditorView.decorations.of(Decoration.set([tableDecoration]))]
 });
 const view = new EditorView({ state, parent: document.querySelector("#editor") });
+const tableWidget = view.dom.querySelector(".cm-table-widget");
+assert.ok(tableWidget);
+const widgetParent = tableWidget.parentNode;
+assert.ok(widgetParent);
+const widgetIndex = Array.from(widgetParent.childNodes).indexOf(tableWidget);
+assert.notEqual(widgetIndex, -1);
+const originalPosAtDOM = view.posAtDOM.bind(view);
+view.posAtDOM = (node, offset = 0) => {
+	if (node === tableWidget) {
+		return tableStart;
+	}
+	if (node === widgetParent && offset === widgetIndex) {
+		return tableStart;
+	}
+	if (node === widgetParent && offset === widgetIndex + 1) {
+		return tableEnd + 1;
+	}
+	return originalPosAtDOM(node, offset);
+};
+assert.deepEqual(
+	getWidgetSourceRangeForTest(view, tableWidget, source),
+	{ from: tableStart, to: tableEnd }
+);
+view.posAtDOM = (node, offset = 0) => {
+	if (node === widgetParent && (offset === widgetIndex || offset === widgetIndex + 1)) {
+		return tableStart;
+	}
+	return originalPosAtDOM(node, offset);
+};
+assert.equal(getWidgetSourceRangeForTest(view, tableWidget, source), null);
+view.posAtDOM = (node, offset = 0) => {
+	if (node === tableWidget) {
+		return tableStart;
+	}
+	if (node === widgetParent && offset === widgetIndex) {
+		return tableStart;
+	}
+	if (node === widgetParent && offset === widgetIndex + 1) {
+		return tableEnd + 1;
+	}
+	return originalPosAtDOM(node, offset);
+};
 const lineStarts = [0];
 for (let index = 0; index < source.length; index += 1) {
 	if (source[index] === "\n") {
@@ -236,14 +279,12 @@ renderEditorTableMarks(view, source, lineStarts, marks, (markId) => clickedMarkI
 
 const table = view.dom.querySelector("table.table-editor");
 assert.ok(table);
-const tableWidget = view.dom.querySelector(".cm-table-widget");
-assert.ok(tableWidget);
 assert.deepEqual(
 	{
 		from: view.posAtDOM(tableWidget, 0),
 		to: view.posAtDOM(tableWidget, tableWidget.childNodes.length)
 	},
-	{ from: tableStart, to: tableEnd }
+	{ from: tableStart, to: tableStart }
 );
 const plainWrapper = table.querySelector('[data-side-mark-reading-id="plain"]');
 const boldWrapper = table.querySelector('[data-side-mark-reading-id="bold"]');
@@ -331,10 +372,32 @@ controller.destroy();
 assert.equal(table.querySelectorAll(".side-mark-reading").length, 0);
 assert.equal(controllerActiveCell.cell.querySelectorAll("[data-side-mark-id]").length, 0);
 
+const plainEditor = document.createElement("div");
+let plainDocumentMaterializations = 0;
+const plainController = new EditorTableMarkRenderer({
+	dom: plainEditor,
+	state: {
+		doc: {
+			toString() {
+				plainDocumentMaterializations += 1;
+				return source;
+			}
+		}
+	}
+}, () => marks, () => undefined);
+await new Promise((resolve) => window.requestAnimationFrame(resolve));
+plainController.schedule();
+await new Promise((resolve) => window.requestAnimationFrame(resolve));
+plainController.destroy();
+assert.equal(plainDocumentMaterializations, 0, "an editor without table widgets must not materialize its document");
+
 const editorExtensionSource = await readFile("src/editor-extension.ts", "utf8");
 assert.match(editorExtensionSource, /new EditorTableMarkRenderer\(/);
 assert.match(editorExtensionSource, /this\.tableMarkRenderer\.schedule\(\)/);
 assert.match(editorExtensionSource, /this\.tableMarkRenderer\.destroy\(\)/);
+assert.doesNotMatch(editorExtensionSource, /state\.doc\.toString\(\)/);
+assert.doesNotMatch(editorExtensionSource, /update\.transactions\.length > 0/);
+assert.match(editorExtensionSource, /shouldRefreshSideMarkDecorations\(/);
 
 controllerActiveCell.cellView.destroy();
 view.destroy();

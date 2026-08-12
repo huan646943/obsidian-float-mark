@@ -4,6 +4,7 @@ import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate
 import type SideMarkPlugin from "./main";
 import { getActiveSelection, isHtmlElement } from "./dom-utils";
 import { buildEditorDecorationLayers, type EditorDecorationLayers } from "./editor-decorations";
+import { shouldRefreshSideMarkDecorations } from "./editor-refresh";
 import { resolveEditorSelectionRect } from "./editor-selection-rect";
 import { EditorTableMarkRenderer } from "./editor-table-renderer";
 import { shouldOpenMarkForSelection } from "./mark-click-guard";
@@ -23,6 +24,7 @@ export function createSideMarkEditorExtension(plugin: SideMarkPlugin): Extension
 			private selectionTimer: number | null = null;
 
 			constructor(private readonly view: EditorView) {
+				plugin.registerEditorView(view, () => this.getFilePath());
 				const layers = this.buildDecorationLayers();
 				this.decorations = layers.decorations;
 				this.outerDecorations = layers.outerDecorations;
@@ -57,13 +59,19 @@ export function createSideMarkEditorExtension(plugin: SideMarkPlugin): Extension
 				if (update.docChanged) {
 					const filePath = this.getFilePath();
 					if (filePath) {
-						plugin.handleEditorDocumentChange(filePath, update.state.doc.toString(), update.changes);
+						plugin.handleEditorDocumentChange(filePath, update.state.doc, update.changes);
 					}
 				}
-				if (update.docChanged || update.viewportChanged || update.transactions.length > 0) {
+				const shouldRefreshDecorations = shouldRefreshSideMarkDecorations(
+					update.docChanged,
+					update.transactions
+				);
+				if (shouldRefreshDecorations) {
 					const layers = this.buildDecorationLayers();
 					this.decorations = layers.decorations;
 					this.outerDecorations = layers.outerDecorations;
+				}
+				if (update.docChanged || update.viewportChanged || shouldRefreshDecorations) {
 					this.tableMarkRenderer.schedule();
 					if (update.viewportChanged) {
 						plugin.hideBlockToolbar();
@@ -75,6 +83,7 @@ export function createSideMarkEditorExtension(plugin: SideMarkPlugin): Extension
 			}
 
 			destroy(): void {
+				plugin.unregisterEditorView(this.view);
 				this.tableMarkRenderer.destroy();
 				this.view.dom.removeEventListener("mouseup", this.mouseupHandler);
 				this.view.dom.removeEventListener("keyup", this.keyupHandler);

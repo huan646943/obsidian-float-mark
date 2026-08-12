@@ -367,6 +367,10 @@ export class SideMarkStore {
 	private relocateMarks(document: SideMarkDocument, source: string): RelocatedMarks {
 		let changed = false;
 		const marks = document.marks.map((mark) => {
+			if (mark.status !== "orphaned"
+				&& source.slice(mark.anchor.startOffset, mark.anchor.endOffset) === mark.anchor.selectedText) {
+				return mark;
+			}
 			const anchor = relocateAnchor(source, mark.anchor, {
 				trustStoredPosition: mark.status !== "orphaned",
 				allowUniqueTextFallback: true

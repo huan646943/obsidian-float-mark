@@ -1,6 +1,7 @@
 import type { Text } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { renderActiveTableCellMarks, type SourceRange } from "./editor-table-cell-renderer";
+import { buildMarkdownTableMaps } from "./markdown-table-map";
 import { buildSourceLineStarts, getReadingMarksForSection, renderReadingMarks } from "./reading-view-renderer";
 import type { SideMark } from "./types";
 
@@ -25,7 +26,7 @@ export function renderEditorTableMarks(
 		if (!table) {
 			continue;
 		}
-		const range = getWidgetSourceRange(view, widget);
+		const range = getWidgetSourceRange(view, widget, source);
 		if (!range) {
 			continue;
 		}
@@ -40,14 +41,34 @@ export function renderEditorTableMarks(
 	}
 }
 
-function getWidgetSourceRange(view: EditorView, widget: HTMLElement): SourceRange | null {
+function getWidgetSourceRange(view: EditorView, widget: HTMLElement, source: string): SourceRange | null {
+	const parent = widget.parentNode;
+	if (!parent) {
+		return null;
+	}
+	const widgetIndex = Array.from(parent.childNodes).indexOf(widget);
+	if (widgetIndex < 0) {
+		return null;
+	}
 	try {
-		const from = view.posAtDOM(widget, 0);
-		const to = view.posAtDOM(widget, widget.childNodes.length);
-		return to > from ? { from, to } : null;
+		const from = view.posAtDOM(parent, widgetIndex);
+		const to = view.posAtDOM(parent, widgetIndex + 1);
+		if (to <= from) {
+			return null;
+		}
+		const tables = buildMarkdownTableMaps(source, { from, to });
+		return tables.length === 1 ? tables[0]?.range || null : null;
 	} catch {
 		return null;
 	}
+}
+
+export function getWidgetSourceRangeForTest(
+	view: EditorView,
+	widget: HTMLElement,
+	source: string
+): SourceRange | null {
+	return getWidgetSourceRange(view, widget, source);
 }
 
 export class EditorTableMarkRenderer {
@@ -87,6 +108,9 @@ export class EditorTableMarkRenderer {
 		this.destroyed = true;
 		this.cancelScheduledRender();
 		this.observer.disconnect();
+		if (!this.hasTableWidgets()) {
+			return;
+		}
 		this.refreshSourceSnapshot();
 		renderEditorTableMarks(this.view, this.source, this.lineStarts, [], this.onClick);
 	}
@@ -94,6 +118,9 @@ export class EditorTableMarkRenderer {
 	private render(): void {
 		this.observer.disconnect();
 		try {
+			if (!this.hasTableWidgets()) {
+				return;
+			}
 			this.refreshSourceSnapshot();
 			const marks = this.getMarks();
 			renderEditorTableMarks(this.view, this.source, this.lineStarts, marks, this.onClick);
@@ -102,6 +129,10 @@ export class EditorTableMarkRenderer {
 				this.observe();
 			}
 		}
+	}
+
+	private hasTableWidgets(): boolean {
+		return Boolean(this.view.dom.querySelector(TABLE_WIDGET_SELECTOR));
 	}
 
 	private refreshSourceSnapshot(): void {

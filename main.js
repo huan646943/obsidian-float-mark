@@ -214,6 +214,34 @@ function clampOffset(offset, docLength) {
   return Math.max(0, Math.min(offset, docLength));
 }
 
+// src/editor-refresh.ts
+var import_state2 = require("@codemirror/state");
+var refreshSideMarkDecorations = import_state2.StateEffect.define();
+var SideMarkEditorViewRegistry = class {
+  constructor() {
+    this.views = /* @__PURE__ */ new Map();
+  }
+  register(view, getFilePath) {
+    this.views.set(view, getFilePath);
+  }
+  unregister(view) {
+    this.views.delete(view);
+  }
+  refresh(filePath) {
+    for (const [view, getFilePath] of this.views) {
+      if (filePath !== null && getFilePath() !== filePath) {
+        continue;
+      }
+      view.dispatch({ effects: refreshSideMarkDecorations.of(void 0) });
+    }
+  }
+};
+function shouldRefreshSideMarkDecorations(docChanged, transactions) {
+  return docChanged || transactions.some((transaction) => transaction.effects.some(
+    (effect) => effect.is(refreshSideMarkDecorations)
+  ));
+}
+
 // src/editor-selection-rect.ts
 function resolveEditorSelectionRect(editorDom, selection, placement = "bounding") {
   if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
@@ -247,7 +275,7 @@ function cloneRect(rect) {
 }
 
 // src/editor-table-cell-renderer.ts
-var import_state2 = require("@codemirror/state");
+var import_state3 = require("@codemirror/state");
 var import_view2 = require("@codemirror/view");
 
 // src/anchors.ts
@@ -268,6 +296,25 @@ function createTextAnchor(source, startOffset, endOffset) {
       lineEnd: endPosition.line,
       columnStart: startPosition.column,
       columnEnd: endPosition.column
+    }
+  };
+}
+function createEditorTextAnchor(document, startOffset, endOffset) {
+  const start = Math.max(0, Math.min(startOffset, endOffset, document.length));
+  const end = Math.max(start, Math.min(Math.max(startOffset, endOffset), document.length));
+  const startLine = document.lineAt(start);
+  const endLine = document.lineAt(end);
+  return {
+    startOffset: start,
+    endOffset: end,
+    selectedText: document.sliceString(start, end),
+    prefix: document.sliceString(Math.max(0, start - CONTEXT_LENGTH), start),
+    suffix: document.sliceString(end, Math.min(document.length, end + CONTEXT_LENGTH)),
+    position: {
+      lineStart: startLine.number,
+      lineEnd: endLine.number,
+      columnStart: start - startLine.from + 1,
+      columnEnd: end - endLine.from + 1
     }
   };
 }
@@ -590,8 +637,8 @@ var emptyDecorationLayers = {
   decorations: import_view2.Decoration.none,
   outerDecorations: import_view2.Decoration.none
 };
-var setActiveCellLayers = import_state2.StateEffect.define();
-var activeCellLayersField = import_state2.StateField.define({
+var setActiveCellLayers = import_state3.StateEffect.define();
+var activeCellLayersField = import_state3.StateField.define({
   create: () => emptyDecorationLayers,
   update: (value, transaction) => {
     let next = transaction.docChanged ? {
@@ -674,7 +721,7 @@ function ensureCellDecorationField(view) {
   if (configuredCellViews.has(view)) {
     return;
   }
-  view.dispatch({ effects: import_state2.StateEffect.appendConfig.of(activeCellLayersField) });
+  view.dispatch({ effects: import_state3.StateEffect.appendConfig.of(activeCellLayersField) });
   configuredCellViews.add(view);
 }
 function buildMarkSignature(marks) {
@@ -1539,7 +1586,7 @@ function renderEditorTableMarks(view, source, lineStarts, marks, onClick) {
     if (!table) {
       continue;
     }
-    const range = getWidgetSourceRange(view, widget);
+    const range = getWidgetSourceRange(view, widget, source);
     if (!range) {
       continue;
     }
@@ -1553,11 +1600,24 @@ function renderEditorTableMarks(view, source, lineStarts, marks, onClick) {
     });
   }
 }
-function getWidgetSourceRange(view, widget) {
+function getWidgetSourceRange(view, widget, source) {
+  var _a;
+  const parent = widget.parentNode;
+  if (!parent) {
+    return null;
+  }
+  const widgetIndex = Array.from(parent.childNodes).indexOf(widget);
+  if (widgetIndex < 0) {
+    return null;
+  }
   try {
-    const from = view.posAtDOM(widget, 0);
-    const to = view.posAtDOM(widget, widget.childNodes.length);
-    return to > from ? { from, to } : null;
+    const from = view.posAtDOM(parent, widgetIndex);
+    const to = view.posAtDOM(parent, widgetIndex + 1);
+    if (to <= from) {
+      return null;
+    }
+    const tables = buildMarkdownTableMaps(source, { from, to });
+    return tables.length === 1 ? ((_a = tables[0]) == null ? void 0 : _a.range) || null : null;
   } catch (e) {
     return null;
   }
@@ -1595,12 +1655,18 @@ var EditorTableMarkRenderer = class {
     this.destroyed = true;
     this.cancelScheduledRender();
     this.observer.disconnect();
+    if (!this.hasTableWidgets()) {
+      return;
+    }
     this.refreshSourceSnapshot();
     renderEditorTableMarks(this.view, this.source, this.lineStarts, [], this.onClick);
   }
   render() {
     this.observer.disconnect();
     try {
+      if (!this.hasTableWidgets()) {
+        return;
+      }
       this.refreshSourceSnapshot();
       const marks = this.getMarks();
       renderEditorTableMarks(this.view, this.source, this.lineStarts, marks, this.onClick);
@@ -1609,6 +1675,9 @@ var EditorTableMarkRenderer = class {
         this.observe();
       }
     }
+  }
+  hasTableWidgets() {
+    return Boolean(this.view.dom.querySelector(TABLE_WIDGET_SELECTOR));
   }
   refreshSourceSnapshot() {
     const document = this.view.state.doc;
@@ -1639,6 +1708,7 @@ function createSideMarkEditorExtension(plugin) {
       constructor(view) {
         this.view = view;
         this.selectionTimer = null;
+        plugin.registerEditorView(view, () => this.getFilePath());
         const layers = this.buildDecorationLayers();
         this.decorations = layers.decorations;
         this.outerDecorations = layers.outerDecorations;
@@ -1671,13 +1741,19 @@ function createSideMarkEditorExtension(plugin) {
         if (update.docChanged) {
           const filePath = this.getFilePath();
           if (filePath) {
-            plugin.handleEditorDocumentChange(filePath, update.state.doc.toString(), update.changes);
+            plugin.handleEditorDocumentChange(filePath, update.state.doc, update.changes);
           }
         }
-        if (update.docChanged || update.viewportChanged || update.transactions.length > 0) {
+        const shouldRefreshDecorations = shouldRefreshSideMarkDecorations(
+          update.docChanged,
+          update.transactions
+        );
+        if (shouldRefreshDecorations) {
           const layers = this.buildDecorationLayers();
           this.decorations = layers.decorations;
           this.outerDecorations = layers.outerDecorations;
+        }
+        if (update.docChanged || update.viewportChanged || shouldRefreshDecorations) {
           this.tableMarkRenderer.schedule();
           if (update.viewportChanged) {
             plugin.hideBlockToolbar();
@@ -1688,6 +1764,7 @@ function createSideMarkEditorExtension(plugin) {
         }
       }
       destroy() {
+        plugin.unregisterEditorView(this.view);
         this.tableMarkRenderer.destroy();
         this.view.dom.removeEventListener("mouseup", this.mouseupHandler);
         this.view.dom.removeEventListener("keyup", this.keyupHandler);
@@ -1883,17 +1960,22 @@ function mergePendingEditorAnchorUpdates(pending, previousMarks, nextMarks) {
     });
   }
 }
-function reconcileEditorMarks(marks, source, changes) {
+function reconcileEditorMarks(marks, document, changes) {
+  let source = null;
+  const getSource = () => {
+    source != null ? source : source = document.toString();
+    return source;
+  };
   return marks.map((mark) => {
     if (mark.status === "resolved") {
       return mark;
     }
     const from = changes.mapPos(mark.anchor.startOffset, 1);
     const to = Math.max(from, changes.mapPos(mark.anchor.endOffset, -1));
-    if (mark.status === "active" && source.slice(from, to) === mark.anchor.selectedText) {
-      return { ...mark, anchor: createTextAnchor(source, from, to) };
+    if (mark.status === "active" && document.sliceString(from, to) === mark.anchor.selectedText) {
+      return { ...mark, anchor: createEditorTextAnchor(document, from, to) };
     }
-    const anchor = relocateAnchor(source, { ...mark.anchor, startOffset: from, endOffset: to }, {
+    const anchor = relocateAnchor(getSource(), { ...mark.anchor, startOffset: from, endOffset: to }, {
       trustStoredPosition: false,
       allowUniqueTextFallback: false
     });
@@ -3678,6 +3760,9 @@ var SideMarkStore = class {
   relocateMarks(document, source) {
     let changed = false;
     const marks = document.marks.map((mark) => {
+      if (mark.status !== "orphaned" && source.slice(mark.anchor.startOffset, mark.anchor.endOffset) === mark.anchor.selectedText) {
+        return mark;
+      }
       const anchor = relocateAnchor(source, mark.anchor, {
         trustStoredPosition: mark.status !== "orphaned",
         allowUniqueTextFallback: true
@@ -3862,6 +3947,27 @@ var FLOAT_MARK_ICON_SVG = `
 	<path d="M30 10h40"/>
 </g>
 `;
+
+// src/sidebar-reply.ts
+function bindReplyTrigger(trigger, textarea, composer, card) {
+  const openComposer = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    composer.addClass("is-editing");
+    card.addClass("is-composing");
+    trigger.hide();
+    textarea.show();
+    textarea.focus();
+  };
+  trigger.addEventListener("click", openComposer);
+  composer.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (composer.classList.contains("is-editing")) {
+      return;
+    }
+    openComposer(event);
+  });
+}
 
 // src/sidebar-logic.ts
 function toggleSidebarScope(scope) {
@@ -4822,19 +4928,11 @@ var SideMarkSidebarView = class extends import_obsidian8.ItemView {
       cls: "side-mark-reply-trigger",
       attr: { type: "button" }
     });
-    trigger.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      composer.addClass("is-editing");
-      card.addClass("is-composing");
-      trigger.hide();
-      textarea.show();
-      textarea.focus();
-    });
     const textarea = composer.createEl("textarea", {
       attr: { placeholder: this.t("sidebar.replyPlaceholder") }
     });
     textarea.hide();
+    bindReplyTrigger(trigger, textarea, composer, card);
     const row = composer.createDiv({ cls: "side-mark-reply-composer-actions" });
     row.hide();
     const cancel = row.createEl("button", {
@@ -6620,6 +6718,7 @@ var SideMarkPlugin = class extends import_obsidian10.Plugin {
     this.ribbonIconEl = null;
     this.registeredCommandIds = [];
     this.activeEditorView = null;
+    this.editorViews = new SideMarkEditorViewRegistry();
     this.pendingCommentSelection = null;
     this.readingSelection = null;
     this.readingSelectionTimer = null;
@@ -6819,6 +6918,12 @@ var SideMarkPlugin = class extends import_obsidian10.Plugin {
   setActiveEditorView(view) {
     this.activeEditorView = view;
   }
+  registerEditorView(view, getFilePath) {
+    this.editorViews.register(view, getFilePath);
+  }
+  unregisterEditorView(view) {
+    this.editorViews.unregister(view);
+  }
   hideSelectionToolbar() {
     this.toolbar.hide();
   }
@@ -6866,12 +6971,12 @@ var SideMarkPlugin = class extends import_obsidian10.Plugin {
     this.refreshEditorDecorations();
     await this.refreshSidebar();
   }
-  handleEditorDocumentChange(filePath, source, changes) {
+  handleEditorDocumentChange(filePath, document, changes) {
     if (!this.currentDocument || this.currentDocument.filePath !== filePath) {
       return;
     }
     const previousMarks = this.currentDocument.marks;
-    const nextMarks = reconcileEditorMarks(previousMarks, source, changes);
+    const nextMarks = reconcileEditorMarks(previousMarks, document, changes);
     this.currentDocument = {
       ...this.currentDocument,
       marks: nextMarks
@@ -7711,8 +7816,8 @@ ${stripped}
     return createdMark || null;
   }
   refreshEditorDecorations() {
-    var _a;
-    (_a = this.activeEditorView) == null ? void 0 : _a.dispatch({ effects: [] });
+    var _a, _b;
+    this.editorViews.refresh((_b = (_a = this.currentDocument) == null ? void 0 : _a.filePath) != null ? _b : null);
   }
   clearPendingCommentSelection() {
     if (!this.pendingCommentSelection) {

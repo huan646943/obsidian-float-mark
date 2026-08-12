@@ -5,6 +5,7 @@ import { FLOAT_MARK_ICON_ID } from "./icons";
 import { isHtmlElement, isInputEvent } from "./dom-utils";
 import type { I18nKey } from "./i18n";
 import { getMarkBackgroundClass, resolveMarkBackground } from "./mark-appearance";
+import { bindReplyTrigger } from "./sidebar-reply";
 import {
 	bindVaultCardNavigation,
 	sortMarksByCreatedAt,
@@ -976,19 +977,11 @@ export class SideMarkSidebarView extends ItemView {
 			cls: "side-mark-reply-trigger",
 			attr: { type: "button" }
 		});
-		trigger.addEventListener("click", (event) => {
-			event.preventDefault();
-			event.stopPropagation();
-			composer.addClass("is-editing");
-			card.addClass("is-composing");
-			trigger.hide();
-			textarea.show();
-			textarea.focus();
-		});
 		const textarea = composer.createEl("textarea", {
 			attr: { placeholder: this.t("sidebar.replyPlaceholder") }
 		});
 		textarea.hide();
+		bindReplyTrigger(trigger, textarea, composer, card);
 		const row = composer.createDiv({ cls: "side-mark-reply-composer-actions" });
 		row.hide();
 		const cancel = row.createEl("button", {

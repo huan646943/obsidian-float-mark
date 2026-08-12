@@ -1,8 +1,9 @@
 import { addIcon, type Command, Editor, getLanguage, MarkdownView, Notice, Plugin, PluginSettingTab, Setting, TFile, WorkspaceLeaf } from "obsidian";
 import type { MarkdownPostProcessorContext } from "obsidian";
-import type { ChangeDesc } from "@codemirror/state";
+import type { ChangeDesc, Text } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { createSideMarkEditorExtension } from "./editor-extension";
+import { SideMarkEditorViewRegistry } from "./editor-refresh";
 import { resolveEditorSelectionRect, type EditorSelectionRectPlacement } from "./editor-selection-rect";
 import { mergePendingEditorAnchorUpdates, reconcileEditorMarks } from "./editor-anchor-tracker";
 import { CommentPopover } from "./comment-popover";
@@ -95,6 +96,7 @@ export default class SideMarkPlugin extends Plugin {
 	private ribbonIconEl: HTMLElement | null = null;
 	private registeredCommandIds: string[] = [];
 	private activeEditorView: EditorView | null = null;
+	private readonly editorViews = new SideMarkEditorViewRegistry();
 	private pendingCommentSelection: {
 		filePath: string;
 		from: number;
@@ -319,6 +321,14 @@ export default class SideMarkPlugin extends Plugin {
 		this.activeEditorView = view;
 	}
 
+	registerEditorView(view: EditorView, getFilePath: () => string | null): void {
+		this.editorViews.register(view, getFilePath);
+	}
+
+	unregisterEditorView(view: EditorView): void {
+		this.editorViews.unregister(view);
+	}
+
 	hideSelectionToolbar(): void {
 		this.toolbar.hide();
 	}
@@ -372,12 +382,12 @@ export default class SideMarkPlugin extends Plugin {
 		await this.refreshSidebar();
 	}
 
-	handleEditorDocumentChange(filePath: string, source: string, changes: ChangeDesc): void {
+	handleEditorDocumentChange(filePath: string, document: Text, changes: ChangeDesc): void {
 		if (!this.currentDocument || this.currentDocument.filePath !== filePath) {
 			return;
 		}
 		const previousMarks = this.currentDocument.marks;
-		const nextMarks = reconcileEditorMarks(previousMarks, source, changes);
+		const nextMarks = reconcileEditorMarks(previousMarks, document, changes);
 		this.currentDocument = {
 			...this.currentDocument,
 			marks: nextMarks
@@ -1283,7 +1293,7 @@ export default class SideMarkPlugin extends Plugin {
 	}
 
 	private refreshEditorDecorations(): void {
-		this.activeEditorView?.dispatch({ effects: [] });
+		this.editorViews.refresh(this.currentDocument?.filePath ?? null);
 	}
 
 	private clearPendingCommentSelection(): void {
