@@ -61,10 +61,10 @@ let cardClickCount = 0;
 card.addEventListener("click", () => cardClickCount += 1);
 bindReplyTrigger(trigger, textarea, composer, card);
 
-trigger.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true, cancelable: true }));
-assert.equal(cardClickCount, 0, "the first reply click must not reach the card navigation handler");
-assert.equal(textarea.style.display, "", "the first reply click must reveal the textarea");
-assert.equal(dom.window.document.activeElement, textarea, "the first reply click must focus the textarea");
+composer.dispatchEvent(new dom.window.MouseEvent("pointerdown", { bubbles: true, button: 0, cancelable: true }));
+assert.equal(cardClickCount, 0, "the first reply press must not reach the card navigation handler");
+assert.equal(textarea.style.display, "", "the first reply press must reveal the textarea before click retargeting");
+assert.equal(dom.window.document.activeElement, textarea, "the first reply press must focus the textarea");
 assert.equal(trigger.style.display, "none", "the trigger must hide while composing");
 assert.equal(composer.classList.contains("is-editing"), true);
 assert.equal(card.classList.contains("is-composing"), true);
@@ -90,5 +90,19 @@ assert.equal(blankComposer.classList.contains("is-editing"), true);
 assert.equal(blankCard.classList.contains("is-composing"), true);
 blankComposer.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true, cancelable: true }));
 assert.equal(blankCardClickCount, 0, "blank composer clicks must remain isolated while editing");
+
+const keyboardCard = dom.window.document.createElement("article");
+keyboardCard.innerHTML = "<div><button>Reply...</button><textarea></textarea></div>";
+dom.window.document.body.appendChild(keyboardCard);
+const keyboardComposer = keyboardCard.querySelector("div");
+const keyboardTrigger = keyboardCard.querySelector("button");
+const keyboardTextarea = keyboardCard.querySelector("textarea");
+keyboardTextarea.hide();
+bindReplyTrigger(keyboardTrigger, keyboardTextarea, keyboardComposer, keyboardCard);
+
+keyboardTrigger.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true, cancelable: true }));
+assert.equal(keyboardTextarea.style.display, "", "keyboard-style trigger click must reveal the textarea");
+assert.equal(dom.window.document.activeElement, keyboardTextarea,
+	"keyboard-style trigger click must focus the textarea");
 
 console.log("sidebar reply tests passed");

@@ -3959,6 +3959,12 @@ function bindReplyTrigger(trigger, textarea, composer, card) {
     textarea.show();
     textarea.focus();
   };
+  composer.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || composer.classList.contains("is-editing")) {
+      return;
+    }
+    openComposer(event);
+  });
   trigger.addEventListener("click", openComposer);
   composer.addEventListener("click", (event) => {
     event.stopPropagation();
