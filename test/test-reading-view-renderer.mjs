@@ -17,7 +17,8 @@ const {
 	findReadingMatchForTest,
 	getReadingMarkElements,
 	getReadingMarksForSection,
-	renderReadingMarks
+	renderReadingMarks,
+	scrollReadingMarkIntoView
 } = await import("./.tmp/reading-view-renderer.mjs");
 
 function createMark({
@@ -66,6 +67,32 @@ function createMark({
 		status: "active"
 	};
 }
+
+const scrollTargetDom = new JSDOM([
+	'<div class="markdown-preview-view"><div class="markdown-preview-section">',
+	'<div class="table-wrapper"><table><tbody><tr><td><span id="table-mark">table</span></td></tr></tbody></table></div>',
+	'<p><span id="paragraph-mark">paragraph</span></p>',
+	'</div></div>'
+].join(""));
+const previewElement = scrollTargetDom.window.document.querySelector(".markdown-preview-view");
+const tableMarkElement = scrollTargetDom.window.document.querySelector("#table-mark");
+const paragraphMarkElement = scrollTargetDom.window.document.querySelector("#paragraph-mark");
+Object.defineProperty(previewElement, "clientHeight", { value: 600 });
+previewElement.scrollTop = 900;
+previewElement.getBoundingClientRect = () => ({ top: 100 });
+tableMarkElement.getBoundingClientRect = () => ({ top: 250, height: 20 });
+let tableScrollOptions = null;
+let paragraphScrollOptions = null;
+previewElement.scrollTo = (options) => {
+	tableScrollOptions = options;
+};
+paragraphMarkElement.scrollIntoView = (options) => {
+	paragraphScrollOptions = options;
+};
+scrollReadingMarkIntoView(tableMarkElement);
+scrollReadingMarkIntoView(paragraphMarkElement);
+assert.deepEqual(tableScrollOptions, { top: 760, behavior: "smooth" });
+assert.deepEqual(paragraphScrollOptions, { block: "center", behavior: "smooth" });
 
 const boldMark = createMark({ selectedText: "**全生命周期管理**" });
 const boldMatch = findReadingMatchForTest("1. 全生命周期管理：创建、编辑", boldMark);

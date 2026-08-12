@@ -30,7 +30,8 @@ import {
 	getReadingMarkElements,
 	getReadingMarksForSection,
 	getReadingSectionSourceRange,
-	renderReadingMarks
+	renderReadingMarks,
+	scrollReadingMarkIntoView
 } from "./reading-view-renderer";
 import {
 	findSourceRangeForReadingSelection,
@@ -1633,7 +1634,7 @@ export default class SideMarkPlugin extends Plugin {
 		if (markEls.length === 0) {
 			return false;
 		}
-		markEls[0].scrollIntoView({ block: "center", behavior: "smooth" });
+		scrollReadingMarkIntoView(markEls[0]);
 		for (const markEl of markEls) {
 			markEl.addClass("side-mark-reading-flash");
 		}
@@ -1651,7 +1652,8 @@ export default class SideMarkPlugin extends Plugin {
 			if (!(view instanceof MarkdownView) || view.file?.path !== filePath || view.getMode() !== "preview") {
 				continue;
 			}
-			const elements = getReadingMarkElements(view.contentEl, markId);
+			const elements = getReadingMarkElements(view.contentEl, markId)
+				.filter((element) => element.getClientRects().length > 0);
 			if (elements.length > 0) {
 				void this.app.workspace.revealLeaf(leaf);
 				return elements;

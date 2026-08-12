@@ -842,6 +842,17 @@ function findRenderedMatchInContainer(ranges, target) {
 function getReadingMarkElements(root, markId) {
   return Array.from(root.querySelectorAll(READING_MARK_SELECTOR)).filter((element) => element.dataset.sideMarkReadingId === markId);
 }
+function scrollReadingMarkIntoView(markElement) {
+  const preview = markElement.closest(".markdown-preview-view");
+  if (!preview || !markElement.closest("table")) {
+    markElement.scrollIntoView({ block: "center", behavior: "smooth" });
+    return;
+  }
+  const previewRect = preview.getBoundingClientRect();
+  const markRect = markElement.getBoundingClientRect();
+  const centeredTop = preview.scrollTop + markRect.top - previewRect.top - (preview.clientHeight - markRect.height) / 2;
+  preview.scrollTo({ top: centeredTop, behavior: "smooth" });
+}
 function clearReadingMarks(container, excludedContainerSelector) {
   const isExcluded = (element) => Boolean(
     excludedContainerSelector && element.closest(excludedContainerSelector)
@@ -8121,7 +8132,7 @@ ${stripped}
     if (markEls.length === 0) {
       return false;
     }
-    markEls[0].scrollIntoView({ block: "center", behavior: "smooth" });
+    scrollReadingMarkIntoView(markEls[0]);
     for (const markEl of markEls) {
       markEl.addClass("side-mark-reading-flash");
     }
@@ -8139,7 +8150,7 @@ ${stripped}
       if (!(view instanceof import_obsidian10.MarkdownView) || ((_a = view.file) == null ? void 0 : _a.path) !== filePath || view.getMode() !== "preview") {
         continue;
       }
-      const elements = getReadingMarkElements(view.contentEl, markId);
+      const elements = getReadingMarkElements(view.contentEl, markId).filter((element) => element.getClientRects().length > 0);
       if (elements.length > 0) {
         void this.app.workspace.revealLeaf(leaf);
         return elements;

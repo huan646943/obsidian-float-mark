@@ -185,6 +185,19 @@ export function getReadingMarkElements(root: ParentNode, markId: string): HTMLEl
 		.filter((element) => element.dataset.sideMarkReadingId === markId);
 }
 
+export function scrollReadingMarkIntoView(markElement: HTMLElement): void {
+	const preview = markElement.closest<HTMLElement>(".markdown-preview-view");
+	if (!preview || !markElement.closest("table")) {
+		markElement.scrollIntoView({ block: "center", behavior: "smooth" });
+		return;
+	}
+	const previewRect = preview.getBoundingClientRect();
+	const markRect = markElement.getBoundingClientRect();
+	const centeredTop = preview.scrollTop + markRect.top - previewRect.top
+		- (preview.clientHeight - markRect.height) / 2;
+	preview.scrollTo({ top: centeredTop, behavior: "smooth" });
+}
+
 function clearReadingMarks(container: HTMLElement, excludedContainerSelector?: string): void {
 	const isExcluded = (element: HTMLElement): boolean => Boolean(
 		excludedContainerSelector && element.closest(excludedContainerSelector)

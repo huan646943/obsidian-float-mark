@@ -157,9 +157,10 @@ assert.match(
 assert.doesNotMatch(renderPreviewMarksForViewMethod, /renderReadingMarks\([^\n]*\[\]/);
 assert.match(source, /import \{[^}]*getReadingMarkElements[^}]*\} from "\.\/reading-view-renderer"/s);
 assert.match(findReadingMarkElementsMethod, /getReadingMarkElements\(view\.contentEl, markId\)/);
+assert.match(findReadingMarkElementsMethod, /\.filter\(\(element\) => element\.getClientRects\(\)\.length > 0\)/);
 assert.match(findReadingMarkElementsMethod, /void this\.app\.workspace\.revealLeaf\(leaf\)/);
 assert.match(jumpToReadingMarkMethod, /const markEls = this\.findReadingMarkElements\(markId, mark\.filePath\)/);
-assert.match(jumpToReadingMarkMethod, /markEls\[0\]\.scrollIntoView/);
+assert.match(jumpToReadingMarkMethod, /scrollReadingMarkIntoView\(markEls\[0\]\)/);
 assert.match(
 	jumpToReadingMarkMethod,
 	/for \(const markEl of markEls\) \{\s*markEl\.addClass\("side-mark-reading-flash"\)/
