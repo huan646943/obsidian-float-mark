@@ -95,6 +95,7 @@ var DEFAULT_SETTINGS = {
   language: void 0,
   autoOpenSidebar: true,
   showBlockToolbar: true,
+  defaultCommentColor: "yellow",
   autoSyncToLark: false,
   preferBodyBlockForLark: false,
   commentAuthorName: "\u6211",
@@ -3091,6 +3092,8 @@ var TRANSLATIONS = {
     "settings.autoOpenSidebar.name": "\u521B\u5EFA\u6807\u6CE8\u540E\u6253\u5F00\u4FA7\u680F",
     "settings.showBlockToolbar.name": "\u663E\u793A\u5757\u7EA7\u6D6E\u52A8\u5DE5\u5177\u680F",
     "settings.showBlockToolbar.desc": "\u9F20\u6807\u60AC\u505C\u5728\u6B63\u6587\u5757\u4E0A\u65F6\uFF0C\u663E\u793A\u5757\u683C\u5F0F\u4E0E\u64CD\u4F5C\u83DC\u5355\u3002",
+    "settings.defaultCommentColor.name": "\u9ED8\u8BA4\u8BC4\u8BBA\u989C\u8272",
+    "settings.defaultCommentColor.desc": "\u9009\u62E9\u540E\u7EED\u65B0\u5EFA\u8BC4\u8BBA\u7684\u521D\u59CB\u989C\u8272\u3002",
     "settings.scopeControlStyle.name": "\u6587\u6863\u8303\u56F4\u5207\u6362\u6837\u5F0F",
     "settings.scopeControlStyle.desc": "\u9009\u62E9\u4FA7\u680F\u9876\u90E8\u7684\u5F53\u524D\u6587\u6863\u4E0E\u5168\u90E8\u6587\u6863\u5207\u6362\u65B9\u5F0F\u3002",
     "settings.scopeControlStyle.tabs": "A \xB7 \u6587\u5B57\u4E0B\u5212\u7EBF",
@@ -3267,6 +3270,8 @@ var TRANSLATIONS = {
     "settings.autoOpenSidebar.name": "Open sidebar after creating a mark",
     "settings.showBlockToolbar.name": "Show block floating toolbar",
     "settings.showBlockToolbar.desc": "Show block formatting and action menu when hovering over an editor block.",
+    "settings.defaultCommentColor.name": "Default comment color",
+    "settings.defaultCommentColor.desc": "Choose the initial color for new comments.",
     "settings.scopeControlStyle.name": "Document scope control",
     "settings.scopeControlStyle.desc": "Choose how Current document and All documents are switched in the sidebar.",
     "settings.scopeControlStyle.tabs": "A \xB7 Underline tabs",
@@ -6765,8 +6770,10 @@ var SideMarkPlugin = class extends import_obsidian10.Plugin {
     this.registerView(SIDE_MARK_VIEW_TYPE, (leaf) => new SideMarkSidebarView(leaf, this));
     this.ribbonIconEl = this.addRibbonIcon(FLOAT_MARK_ICON_ID, this.t("app.openSidebar"), () => void this.openSidebar());
     this.registerLocalizedCommands();
-    this.registerEvent(this.app.workspace.on("active-leaf-change", () => {
-      void this.reloadCurrentDocument();
+    this.registerEvent(this.app.workspace.on("active-leaf-change", (leaf) => {
+      if ((leaf == null ? void 0 : leaf.view) instanceof import_obsidian10.MarkdownView) {
+        void this.reloadCurrentDocument();
+      }
       this.syncPreviewMarkObservers();
     }));
     this.registerEvent(this.app.workspace.on("layout-change", () => this.syncPreviewMarkObservers()));
@@ -7787,7 +7794,7 @@ ${stripped}
       startOffset: selection.from,
       endOffset: selection.to,
       kind,
-      color: "yellow",
+      color: kind === "comment" ? this.settings.defaultCommentColor : "yellow",
       textColor: appearance.textColor,
       backgroundColor: appearance.backgroundColor,
       noteContent
@@ -7817,7 +7824,7 @@ ${stripped}
       startOffset: from,
       endOffset: to,
       kind,
-      color: "yellow",
+      color: kind === "comment" ? this.settings.defaultCommentColor : "yellow",
       textColor: appearance.textColor,
       backgroundColor: appearance.backgroundColor,
       noteContent
@@ -8333,6 +8340,12 @@ var SideMarkSettingTab = class extends import_obsidian10.PluginSettingTab {
         if (!value) {
           this.plugin.hideBlockToolbar();
         }
+        await this.plugin.saveSettings();
+      });
+    });
+    new import_obsidian10.Setting(containerEl).setName(this.plugin.t("settings.defaultCommentColor.name")).setDesc(this.plugin.t("settings.defaultCommentColor.desc")).addDropdown((dropdown) => {
+      dropdown.addOption("yellow", this.plugin.t("sidebar.yellow")).addOption("blue", this.plugin.t("sidebar.blue")).addOption("green", this.plugin.t("sidebar.green")).addOption("red", this.plugin.t("sidebar.red")).setValue(this.plugin.settings.defaultCommentColor).onChange(async (value) => {
+        this.plugin.settings.defaultCommentColor = value;
         await this.plugin.saveSettings();
       });
     });

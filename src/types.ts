@@ -128,6 +128,7 @@ export interface SideMarkSettings {
 	language?: PluginLanguage;
 	autoOpenSidebar: boolean;
 	showBlockToolbar: boolean;
+	defaultCommentColor: MarkColor;
 	autoSyncToLark: boolean;
 	preferBodyBlockForLark: boolean;
 	commentAuthorName: string;
@@ -139,6 +140,7 @@ export const DEFAULT_SETTINGS: SideMarkSettings = {
 	language: undefined,
 	autoOpenSidebar: true,
 	showBlockToolbar: true,
+	defaultCommentColor: "yellow",
 	autoSyncToLark: false,
 	preferBodyBlockForLark: false,
 	commentAuthorName: "我",

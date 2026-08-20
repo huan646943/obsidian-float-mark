@@ -53,6 +53,8 @@ assert.equal(translate("zh-CN", "settings.scopeControlStyle.tabs"), "A · 文字
 assert.equal(translate("zh-CN", "settings.scopeControlStyle.dropdown"), "B · 单入口下拉");
 assert.equal(translate("zh-CN", "settings.scopeControlStyle.swap"), "C · 状态一键交换");
 assert.equal(translate("zh-CN", "settings.scopeControlStyle.switch"), "F · 双向物理开关");
+assert.equal(translate("zh-CN", "settings.defaultCommentColor.name"), "默认评论颜色");
+assert.equal(translate("en", "settings.defaultCommentColor.name"), "Default comment color");
 assert.equal(translate("zh-CN", "sidebar.scopeCurrentShort"), "当前");
 assert.equal(translate("zh-CN", "sidebar.scopeVaultShort"), "全部");
 assert.equal(translate("zh-CN", "sidebar.scopeSwitchLabel"), "文档范围");

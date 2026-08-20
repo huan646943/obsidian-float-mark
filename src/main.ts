@@ -139,8 +139,10 @@ export default class SideMarkPlugin extends Plugin {
 		this.registerView(SIDE_MARK_VIEW_TYPE, (leaf: WorkspaceLeaf) => new SideMarkSidebarView(leaf, this));
 		this.ribbonIconEl = this.addRibbonIcon(FLOAT_MARK_ICON_ID, this.t("app.openSidebar"), () => void this.openSidebar());
 		this.registerLocalizedCommands();
-		this.registerEvent(this.app.workspace.on("active-leaf-change", () => {
-			void this.reloadCurrentDocument();
+		this.registerEvent(this.app.workspace.on("active-leaf-change", (leaf) => {
+			if (leaf?.view instanceof MarkdownView) {
+				void this.reloadCurrentDocument();
+			}
 			this.syncPreviewMarkObservers();
 		}));
 		this.registerEvent(this.app.workspace.on("layout-change", () => this.syncPreviewMarkObservers()));
@@ -1239,7 +1241,7 @@ export default class SideMarkPlugin extends Plugin {
 			startOffset: selection.from,
 			endOffset: selection.to,
 			kind,
-			color: "yellow",
+			color: kind === "comment" ? this.settings.defaultCommentColor : "yellow",
 			textColor: appearance.textColor,
 			backgroundColor: appearance.backgroundColor,
 			noteContent
@@ -1277,7 +1279,7 @@ export default class SideMarkPlugin extends Plugin {
 			startOffset: from,
 			endOffset: to,
 			kind,
-			color: "yellow",
+			color: kind === "comment" ? this.settings.defaultCommentColor : "yellow",
 			textColor: appearance.textColor,
 			backgroundColor: appearance.backgroundColor,
 			noteContent
@@ -1891,6 +1893,22 @@ class SideMarkSettingTab extends PluginSettingTab {
 					}
 					await this.plugin.saveSettings();
 				});
+			});
+
+		new Setting(containerEl)
+			.setName(this.plugin.t("settings.defaultCommentColor.name"))
+			.setDesc(this.plugin.t("settings.defaultCommentColor.desc"))
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption("yellow", this.plugin.t("sidebar.yellow"))
+					.addOption("blue", this.plugin.t("sidebar.blue"))
+					.addOption("green", this.plugin.t("sidebar.green"))
+					.addOption("red", this.plugin.t("sidebar.red"))
+					.setValue(this.plugin.settings.defaultCommentColor)
+					.onChange(async (value) => {
+						this.plugin.settings.defaultCommentColor = value as MarkColor;
+						await this.plugin.saveSettings();
+					});
 			});
 
 		new Setting(containerEl)

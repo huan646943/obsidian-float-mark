@@ -15,6 +15,10 @@ const method = source.slice(methodStart, methodEnd);
 
 assert.match(source, /deleteRemoteCommentReplyInBackground\(file, mark, replyId\)/);
 assert.match(method, /deleteRemoteCommentReplyInBackground\(file: TFile,/);
+assert.match(
+	source,
+	/workspace\.on\("active-leaf-change", \(leaf\) => \{\s*if \(leaf\?\.view instanceof MarkdownView\) \{\s*void this\.reloadCurrentDocument\(\)/
+);
 const remoteAwaitIndex = method.indexOf("await deleteLarkCommentReply");
 const membershipCheckIndex = method.indexOf("this.app.vault.getFileByPath(file.path)");
 const updateIndex = method.indexOf("this.store.updateMark(file.path");
@@ -71,6 +75,8 @@ assert.match(newMarkStylePopoverMethod, /if \(resetRequested\) \{\s*await this\.
 assert.match(newMarkStylePopoverMethod, /isSameHighlightAppearance\(createdChoice, latestChoice\)/);
 assert.match(createReadingMarkMethod, /await this\.refreshMarkViews\(selection\.file\.path, createdMark\)/);
 assert.match(createMarkFromOffsetsMethod, /await this\.refreshMarkViews\(file\.path, createdMark\)/);
+assert.match(createReadingMarkMethod, /color: kind === "comment" \? this\.settings\.defaultCommentColor : "yellow"/);
+assert.match(createMarkFromOffsetsMethod, /color: kind === "comment" \? this\.settings\.defaultCommentColor : "yellow"/);
 assert.equal((source.match(/await this\.refreshMarkViews\(file\.path, mark\)/g) || []).length, 7);
 assert.match(source, /interface ReadingRenderSnapshot \{/);
 assert.match(source, /interface ReadingRenderSnapshotLoad \{/);
