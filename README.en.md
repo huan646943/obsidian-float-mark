@@ -1,4 +1,4 @@
-# FloatMark
+# FloatMark Highlights
 
 [简体中文](https://github.com/huan646943/obsidian-float-mark/blob/main/README.md) | [English](https://github.com/huan646943/obsidian-float-mark/blob/main/README.en.md)
 
