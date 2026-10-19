@@ -1,6 +1,8 @@
 # FloatMark
 
-[简体中文](https://github.com/wanghuan9/obsidian-float-mark/blob/main/README.md) | [English](https://github.com/wanghuan9/obsidian-float-mark/blob/main/README.en.md)
+FloatMark adds floating selection tools, inline highlights, and side comments to Obsidian, with optional Feishu/Lark comment sync.
+
+[简体中文](https://github.com/huan646943/obsidian-float-mark/blob/main/README.md) | [English](https://github.com/huan646943/obsidian-float-mark/blob/main/README.en.md)
 
 FloatMark 是 Obsidian 的标注、评论与浮动快速操作工具栏插件，在本地笔记中提供类似飞书 / Lark 文档的操作体验。
 
@@ -127,7 +129,7 @@ lark-cli auth login
 lark-cli auth status
 ```
 
-然后使用 [Feishu Lark CLI Sync](https://github.com/wanghuan9/obsidian-feishu-lark-cli-sync) 发布当前笔记，使笔记获得 `lark_doc_url` 绑定和 block 映射。
+然后使用 [Feishu Lark CLI Sync](https://github.com/huan646943/obsidian-feishu-lark-cli-sync) 发布当前笔记，使笔记获得 `lark_doc_url` 绑定和 block 映射。
 
 ## 设置
 
@@ -146,18 +148,20 @@ lark-cli auth status
 
 ## 安装
 
+从 `0.1.22` 起，社区插件 ID 改为 `floatmark`。旧版用户需重新安装，并先禁用旧的 `float-mark` 插件，避免同时运行。本地标注仍保存在原来的 `.obsidian-float-marks/` 目录；插件设置需在新版中重新配置。
+
 ### 手动安装
 
 当前可以通过源码构建后手动安装到 Obsidian vault：
 
 ```bash
-git clone https://github.com/wanghuan9/obsidian-float-mark.git
+git clone https://github.com/huan646943/obsidian-float-mark.git
 cd obsidian-float-mark
 npm install
 npm run build
 ```
 
-然后将以下文件复制到你的 vault 插件目录，例如 `.obsidian/plugins/float-mark/`：
+然后将以下文件复制到你的 vault 插件目录，例如 `.obsidian/plugins/floatmark/`：
 
 ```text
 manifest.json
