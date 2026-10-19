@@ -1,6 +1,6 @@
 # FloatMark
 
-[简体中文](https://github.com/wanghuan9/obsidian-float-mark/blob/main/README.md) | [English](https://github.com/wanghuan9/obsidian-float-mark/blob/main/README.en.md)
+[简体中文](https://github.com/huan646943/obsidian-float-mark/blob/main/README.md) | [English](https://github.com/huan646943/obsidian-float-mark/blob/main/README.en.md)
 
 FloatMark is an Obsidian plugin for inline marks, comments, and floating quick-action toolbars, bringing a Feishu / Lark Docs-like experience to local notes.
 
@@ -124,7 +124,7 @@ lark-cli auth login
 lark-cli auth status
 ```
 
-Then publish the current note with [Feishu Lark CLI Sync](https://github.com/wanghuan9/obsidian-feishu-lark-cli-sync) so the note has a `lark_doc_url` binding and block mapping.
+Then publish the current note with [Feishu Lark CLI Sync](https://github.com/huan646943/obsidian-feishu-lark-cli-sync) so the note has a `lark_doc_url` binding and block mapping.
 
 ## Settings
 
@@ -143,18 +143,20 @@ Then publish the current note with [Feishu Lark CLI Sync](https://github.com/wan
 
 ## Installation
 
+Starting with `0.1.22`, the community plugin ID is `floatmark`. Existing users must reinstall and disable the old `float-mark` plugin before enabling this version. Local marks remain in the existing `.obsidian-float-marks/` directory; configure plugin settings again in the new installation.
+
 ### Manual Installation
 
 Build the plugin from source:
 
 ```bash
-git clone https://github.com/wanghuan9/obsidian-float-mark.git
+git clone https://github.com/huan646943/obsidian-float-mark.git
 cd obsidian-float-mark
 npm install
 npm run build
 ```
 
-Then copy these files into your vault plugin directory, for example `.obsidian/plugins/float-mark/`:
+Then copy these files into your vault plugin directory, for example `.obsidian/plugins/floatmark/`:
 
 ```text
 manifest.json
