@@ -1,4 +1,4 @@
-# FloatMark
+# FloatMark Highlights
 
 FloatMark adds floating selection tools, inline highlights, and side comments to Obsidian, with optional Feishu/Lark comment sync.
 
